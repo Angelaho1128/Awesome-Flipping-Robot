@@ -1,0 +1,254 @@
+<mujoco model="pancake_robot">
+
+    <compiler angle="radian" autolimits="true"/>
+
+    <option
+        timestep="0.002"
+        gravity="0 0 -9.81"
+        integrator="RK4"/>
+
+    <default>
+
+        <joint
+            damping="0.15"
+            armature="0.01"/>
+
+        <geom
+            condim="3"
+            friction="0.9 0.05 0.02"/>
+
+        <motor
+            ctrllimited="true"
+            ctrlrange="-30 30"/>
+
+    </default>
+
+
+    <!-- ========================= -->
+    <!-- MATERIALS -->
+    <!-- ========================= -->
+
+    <asset>
+
+        <material
+            name="robot_mat"
+            rgba="0.25 0.25 0.28 1"/>
+
+        <material
+            name="pan_mat"
+            rgba="0.10 0.10 0.12 1"/>
+
+        <material
+            name="pancake_mat"
+            rgba="0.72 0.42 0.16 1"/>
+
+        <material
+            name="floor_mat"
+            rgba="0.30 0.30 0.30 1"/>
+
+    </asset>
+
+
+    <!-- ========================= -->
+    <!-- WORLD -->
+    <!-- ========================= -->
+
+    <worldbody>
+
+        <geom
+            name="floor"
+            type="plane"
+            size="5 5 0.1"
+            material="floor_mat"/>
+
+
+        <!-- ========================= -->
+        <!-- ROBOT BASE -->
+        <!-- ========================= -->
+
+        <body
+            name="base"
+            pos="0 0 0.25">
+
+
+            <!-- ========================= -->
+            <!-- JOINT 1: ELBOW -->
+            <!-- ========================= -->
+
+            <joint
+                name="elbow"
+                type="hinge"
+                axis="0 1 0"
+                range="-2.4 2.4"/>
+
+
+            <!-- Upper arm -->
+
+            <geom
+                name="upper_arm"
+                type="capsule"
+                fromto="0 0 0 0.45 0 0"
+                size="0.055"
+                mass="0.5"
+                material="robot_mat"/>
+
+
+            <!-- ========================= -->
+            <!-- FOREARM -->
+            <!-- ========================= -->
+
+            <body
+                name="forearm"
+                pos="0.45 0 0">
+
+
+                <!-- ========================= -->
+                <!-- JOINT 2: WRIST -->
+                <!-- ========================= -->
+
+                <joint
+                    name="wrist"
+                    type="hinge"
+                    axis="0 1 0"
+                    range="-3.0 3.0"/>
+
+
+                <!-- Forearm -->
+
+                <geom
+                    name="forearm_geom"
+                    type="capsule"
+                    fromto="0 0 0 0.40 0 0"
+                    size="0.045"
+                    mass="0.35"
+                    material="robot_mat"/>
+
+
+                <!-- ========================= -->
+                <!-- PAN AT WRIST -->
+                <!-- ========================= -->
+
+                <!--
+                    IMPORTANT:
+
+                    The pan is located AT the wrist joint.
+
+                    It is NOT positioned at the end of
+                    another body after the wrist.
+
+                    The wrist is the pivot for the pan.
+                -->
+
+                <body
+                    name="pan"
+                    pos="0.40 0 0">
+
+
+                    <!-- Cooking surface -->
+
+                    <geom
+                        name="pan_bottom"
+                        type="cylinder"
+                        size="0.14 0.015"
+                        pos="0 0 0"
+                        mass="0.15"
+                        material="pan_mat"
+                        friction="1.2 0.1 0.02"/>
+
+
+                    <!-- Pan walls -->
+
+                    <geom
+                        name="pan_front"
+                        type="box"
+                        size="0.14 0.012 0.025"
+                        pos="0 0.115 0.025"
+                        material="pan_mat"/>
+
+                    <geom
+                        name="pan_back"
+                        type="box"
+                        size="0.14 0.012 0.025"
+                        pos="0 -0.115 0.025"
+                        material="pan_mat"/>
+
+                    <geom
+                        name="pan_left"
+                        type="box"
+                        size="0.012 0.10 0.025"
+                        pos="-0.115 0 0.025"
+                        material="pan_mat"/>
+
+                    <geom
+                        name="pan_right"
+                        type="box"
+                        size="0.012 0.10 0.025"
+                        pos="0.115 0 0.025"
+                        material="pan_mat"/>
+
+                </body>
+
+            </body>
+
+        </body>
+
+
+        <!-- ========================= -->
+        <!-- PANCAKE -->
+        <!-- ========================= -->
+
+        <!--
+            Independent body.
+
+            It is NOT attached to the pan.
+
+            This allows:
+
+            pan acceleration
+                 ↓
+            pancake launches
+                 ↓
+            pancake rotates
+                 ↓
+            pancake lands
+        -->
+
+        <body
+            name="pancake"
+            pos="0.85 0 0.29">
+
+            <freejoint
+                name="pancake_free"/>
+
+            <geom
+                name="pancake_geom"
+                type="cylinder"
+                size="0.095 0.012"
+                mass="0.08"
+                material="pancake_mat"
+                friction="1.0 0.05 0.02"/>
+
+        </body>
+
+    </worldbody>
+
+
+    <!-- ========================= -->
+    <!-- MOTORS -->
+    <!-- ========================= -->
+
+    <actuator>
+
+        <motor
+            name="elbow_motor"
+            joint="elbow"
+            gear="1"/>
+
+        <motor
+            name="wrist_motor"
+            joint="wrist"
+            gear="1"/>
+
+    </actuator>
+
+</mujoco>
