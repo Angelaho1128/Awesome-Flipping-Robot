@@ -156,7 +156,7 @@
 
         <body
             name="pancake"
-            pos="0.80 0 0.35">
+            pos="0.80 0 0.40">
 
             <freejoint
                 name="pancake_free"/>
@@ -165,7 +165,7 @@
                 name="pancake_geom"
                 type="cylinder"
                 size="0.095 0.012"
-                mass="0.08"
+                mass="0.05"
                 material="pancake_mat"
                 friction="1.0 0.05 0.02"/>
 
@@ -183,12 +183,12 @@
         <motor
             name="elbow_motor"
             joint="elbow"
-            gear="8"/>
+            gear="12"/>
 
         <motor
             name="wrist_motor"
             joint="wrist"
-            gear="8"/>
+            gear="12"/>
 
     </actuator>
 

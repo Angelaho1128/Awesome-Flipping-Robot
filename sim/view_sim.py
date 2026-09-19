@@ -14,6 +14,27 @@ print("MuJoCo loaded!")
 print("Joints:", model.njnt)
 print("Actuators:", model.nu)
 
+
+# ==================================================
+# PARAMETERS
+# ==================================================
+
+# Arm geometry
+ELBOW_TO_WRIST = 0.40
+WRIST_TO_PAN = 0.40
+
+# Pancake
+PANCAKE_MASS = 0.05
+PANCAKE_RADIUS = 0.095
+PANCAKE_THICKNESS = 0.012
+
+# Pan
+PAN_MASS = 0.40
+
+# 57STH56 wrist motor
+WRIST_MOTOR_MASS = 0.70
+
+
 # --------------------------------------------------
 # Find joints
 # --------------------------------------------------
@@ -36,6 +57,7 @@ wrist_qpos = model.jnt_qposadr[wrist_id]
 elbow_qvel = model.jnt_dofadr[elbow_id]
 wrist_qvel = model.jnt_dofadr[wrist_id]
 
+
 # --------------------------------------------------
 # Initial robot configuration
 # --------------------------------------------------
@@ -45,8 +67,9 @@ data.qpos[wrist_qpos] = np.deg2rad(-65)
 
 mujoco.mj_forward(model, data)
 
+
 # --------------------------------------------------
-# Find pancake
+# Find pancake and pan
 # --------------------------------------------------
 
 pancake_body = mujoco.mj_name2id(
@@ -55,102 +78,162 @@ pancake_body = mujoco.mj_name2id(
     "pancake"
 )
 
+pan_body = mujoco.mj_name2id(
+    model,
+    mujoco.mjtObj.mjOBJ_BODY,
+    "pan"
+)
+
+pancake_joint = mujoco.mj_name2id(
+    model,
+    mujoco.mjtObj.mjOBJ_JOINT,
+    "pancake_free"
+)
+
+pancake_qpos = model.jnt_qposadr[pancake_joint]
+
+
+# --------------------------------------------------
+# Place pancake ON the tilted pan
+# --------------------------------------------------
+
+# Get the pan's exact position
+pan_position = data.xpos[pan_body].copy()
+
+# Get the pan's exact orientation
+pan_rotation = data.xmat[pan_body].reshape(3, 3).copy()
+
+# The pan's local Z axis is perpendicular
+# to the cooking surface.
+pan_normal = pan_rotation[:, 2]
+
+# Place pancake slightly above the pan.
+#
+# Pan surface is approximately 0.015 m above
+# the pan body's center.
+#
+# Pancake half-thickness is 0.012 m.
+#
+# Total offset = 0.027 m.
+pancake_position = pan_position + pan_normal * 0.027
+
+# Set pancake position
+data.qpos[
+    pancake_qpos:pancake_qpos + 3
+] = pancake_position
+
+
+# --------------------------------------------------
+# Make pancake parallel to the pan
+# --------------------------------------------------
+
+pancake_quat = np.zeros(4)
+
+mujoco.mju_mat2Quat(
+    pancake_quat,
+    pan_rotation.flatten()
+)
+
+data.qpos[
+    pancake_qpos + 3:pancake_qpos + 7
+] = pancake_quat
+
+mujoco.mj_forward(model, data)
+
+
 # --------------------------------------------------
 # Flip controller
 # --------------------------------------------------
 
 def flip_controller(t):
 
-    # ==========================================
-    # STARTING CONFIGURATION
-    # ==========================================
-
+    # Starting configuration
     start_elbow = np.deg2rad(35)
-    start_wrist = np.deg2rad(-60)
+    start_wrist = np.deg2rad(-65)
 
     # ==========================================
     # PHASE 1: LOAD
     # ==========================================
+    if t < 0.30:
 
-    if t < 0.35:
+        p = t / 0.30
 
-        p = t / 0.35
+        # Elbow moves forward/up slightly.
+        elbow = np.deg2rad(35) + np.deg2rad(20) * p
 
-        # Move backward/down.
-        elbow = start_elbow + np.deg2rad(20) * p
-
-        # Keep the pan slightly downward.
-        wrist = start_wrist - np.deg2rad(5) * p
-
-
-    # ==========================================
-    # PHASE 2: LAUNCH
-    # ==========================================
-
-    elif t < 0.75:
-
-        p = (t - 0.35) / 0.40
-
-        # Rapid elbow extension.
-        elbow = np.deg2rad(55) - np.deg2rad(90) * p
-
-        # Wrist follows but does not snap yet.
-        wrist = np.deg2rad(-65) + np.deg2rad(30) * p
+        # Keep pan facing generally forward.
+        wrist = np.deg2rad(-65)
 
 
     # ==========================================
-    # PHASE 3: WRIST SNAP
+    # PHASE 2: ARC / LAUNCH
     # ==========================================
+    elif t < 0.65:
 
-    elif t < 0.95:
+        p = (t - 0.30) / 0.35
 
-        p = (t - 0.75) / 0.20
+        # Elbow sweeps through the launch.
+        #
+        # 55° -> 0°
+        #
+        # This creates the large arm movement.
+        elbow = np.deg2rad(55) - np.deg2rad(55) * p
 
-        # Elbow reaches the top of the arc.
-        elbow = np.deg2rad(-35) + np.deg2rad(10) * p
-
-        # Very fast wrist snap.
-        wrist = np.deg2rad(-35) + np.deg2rad(170) * p
-
-
-    # ==========================================
-    # PHASE 4: FOLLOW THROUGH
-    # ==========================================
-
-    elif t < 1.35:
-
-        p = (t - 0.95) / 0.40
-
-        # Bring the arm around the arc.
-        elbow = np.deg2rad(-25) + np.deg2rad(60) * p
-
-        wrist = np.deg2rad(135) - np.deg2rad(195) * p
+        # Wrist stays mostly controlled during
+        # the initial arc.
+        wrist = np.deg2rad(-65) + np.deg2rad(15) * p
 
 
     # ==========================================
-    # PHASE 5: RETURN TO CATCH
+    # PHASE 3: WRIST SNAP AT TOP OF ARC
     # ==========================================
+    elif t < 0.83:
 
-    elif t < 1.75:
+        p = (t - 0.65) / 0.18
 
-        p = (t - 1.35) / 0.40
+        # Elbow continues slightly through the arc.
+        elbow = np.deg2rad(0) + np.deg2rad(-10) * p
 
-        elbow = np.deg2rad(-25) + (
-            np.deg2rad(35) - np.deg2rad(-25)
-        ) * p
+        # Now rotate the pan/pancake.
+        wrist = np.deg2rad(-50) + np.deg2rad(180) * p
 
+
+    # ==========================================
+    # PHASE 4: FOLLOW THROUGH / CATCH
+    # ==========================================
+    elif t < 1.20:
+
+        p = (t - 0.83) / 0.37
+
+        # Bring elbow underneath the pancake.
+        elbow = np.deg2rad(-10) + np.deg2rad(45) * p
+
+        # Bring wrist back underneath the pancake.
+        wrist = np.deg2rad(130) - np.deg2rad(195) * p
+
+
+    # ==========================================
+    # PHASE 5: RETURN TO START
+    # ==========================================
+    elif t < 1.55:
+
+        p = (t - 1.15) / 0.40
+
+        # Lower the pan slightly for the catch
+        elbow = np.deg2rad(35 - 65 * (1 - p))
         wrist = np.deg2rad(-60)
 
-    # ==========================================
-    # PHASE 6: CATCH
-    # ==========================================
 
+    # ==========================================
+    # CATCH
+    # ==========================================
     else:
 
         elbow = start_elbow
         wrist = start_wrist
 
     return elbow, wrist
+
 
 # --------------------------------------------------
 # PD controller
@@ -164,6 +247,52 @@ def pd_control(target, position, velocity):
     torque = kp * (target - position) - kd * velocity
 
     return np.clip(torque, -30, 30)
+
+
+# --------------------------------------------------
+# Reset simulation
+# --------------------------------------------------
+
+def reset_simulation():
+
+    mujoco.mj_resetData(model, data)
+
+    # Restore initial robot configuration
+    data.qpos[elbow_qpos] = np.deg2rad(35)
+    data.qpos[wrist_qpos] = np.deg2rad(-65)
+
+    mujoco.mj_forward(model, data)
+
+    # Recalculate the pan position/orientation
+    pan_position = data.xpos[pan_body].copy()
+    pan_rotation = data.xmat[pan_body].reshape(3, 3).copy()
+
+    pan_normal = pan_rotation[:, 2]
+
+    # Put pancake back ON the tilted pan
+    pancake_position = pan_position + pan_normal * 0.027
+
+    data.qpos[
+        pancake_qpos:pancake_qpos + 3
+    ] = pancake_position
+
+    # Match pancake orientation to pan
+    pancake_quat = np.zeros(4)
+
+    mujoco.mju_mat2Quat(
+        pancake_quat,
+        pan_rotation.flatten()
+    )
+
+    data.qpos[
+        pancake_qpos + 3:pancake_qpos + 7
+    ] = pancake_quat
+
+    # Remove all initial velocity
+    data.qvel[:] = 0
+
+    mujoco.mj_forward(model, data)
+
 
 # --------------------------------------------------
 # Viewer
@@ -182,21 +311,46 @@ with mujoco.viewer.launch_passive(
 
         t = time.time() - start_time
 
+
+        # ------------------------------------------
+        # Automatically restart after each attempt
+        # ------------------------------------------
+
+        if t >= 3.0:
+
+            reset_simulation()
+
+            start_time = time.time()
+
+            continue
+
+
+        # ------------------------------------------
         # Get desired joint positions
+        # ------------------------------------------
 
         elbow_target, wrist_target = flip_controller(t)
 
+
+        # ------------------------------------------
         # Current positions
+        # ------------------------------------------
 
         elbow_position = data.qpos[elbow_qpos]
         wrist_position = data.qpos[wrist_qpos]
 
+
+        # ------------------------------------------
         # Current velocities
+        # ------------------------------------------
 
         elbow_velocity = data.qvel[elbow_qvel]
         wrist_velocity = data.qvel[wrist_qvel]
 
+
+        # ------------------------------------------
         # Calculate motor torques
+        # ------------------------------------------
 
         elbow_torque = pd_control(
             elbow_target,
@@ -210,12 +364,18 @@ with mujoco.viewer.launch_passive(
             wrist_velocity
         )
 
+
+        # ------------------------------------------
         # Apply torques
+        # ------------------------------------------
 
         data.ctrl[0] = elbow_torque
         data.ctrl[1] = wrist_torque
 
+
+        # ------------------------------------------
         # Step simulation
+        # ------------------------------------------
 
         mujoco.mj_step(model, data)
 
