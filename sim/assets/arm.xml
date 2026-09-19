@@ -3,14 +3,14 @@
     <compiler angle="radian" autolimits="true"/>
 
     <option
-        timestep="0.002"
+        timestep="0.001"
         gravity="0 0 -9.81"
         integrator="RK4"/>
 
     <default>
 
         <joint
-            damping="0.15"
+            damping="0.10"
             armature="0.01"/>
 
         <geom
@@ -22,11 +22,6 @@
             ctrlrange="-30 30"/>
 
     </default>
-
-
-    <!-- ========================= -->
-    <!-- MATERIALS -->
-    <!-- ========================= -->
 
     <asset>
 
@@ -49,10 +44,6 @@
     </asset>
 
 
-    <!-- ========================= -->
-    <!-- WORLD -->
-    <!-- ========================= -->
-
     <worldbody>
 
         <geom
@@ -62,49 +53,38 @@
             material="floor_mat"/>
 
 
-        <!-- ========================= -->
-        <!-- ROBOT BASE -->
-        <!-- ========================= -->
+        <!-- ================================= -->
+        <!-- ELBOW                            -->
+        <!-- ================================= -->
 
         <body
             name="base"
-            pos="0 0 0.25">
-
-
-            <!-- ========================= -->
-            <!-- JOINT 1: ELBOW -->
-            <!-- ========================= -->
+            pos="0 0 0.30">
 
             <joint
                 name="elbow"
                 type="hinge"
                 axis="0 1 0"
-                range="-2.4 2.4"/>
+                range="-2.6 2.6"/>
 
 
-            <!-- Upper arm -->
-
+            <!-- ELBOW → WRIST -->
             <geom
                 name="upper_arm"
                 type="capsule"
-                fromto="0 0 0 0.45 0 0"
+                fromto="0 0 0 0.40 0 0"
                 size="0.055"
-                mass="0.5"
+                mass="0.50"
                 material="robot_mat"/>
 
 
-            <!-- ========================= -->
-            <!-- FOREARM -->
-            <!-- ========================= -->
+            <!-- ================================= -->
+            <!-- WRIST                             -->
+            <!-- ================================= -->
 
             <body
-                name="forearm"
-                pos="0.45 0 0">
-
-
-                <!-- ========================= -->
-                <!-- JOINT 2: WRIST -->
-                <!-- ========================= -->
+                name="wrist_link"
+                pos="0.40 0 0">
 
                 <joint
                     name="wrist"
@@ -113,10 +93,9 @@
                     range="-3.0 3.0"/>
 
 
-                <!-- Forearm -->
-
+                <!-- WRIST → PAN -->
                 <geom
-                    name="forearm_geom"
+                    name="forearm"
                     type="capsule"
                     fromto="0 0 0 0.40 0 0"
                     size="0.045"
@@ -124,39 +103,17 @@
                     material="robot_mat"/>
 
 
-                <!-- ========================= -->
-                <!-- PAN AT WRIST -->
-                <!-- ========================= -->
-
-                <!--
-                    IMPORTANT:
-
-                    The pan is located AT the wrist joint.
-
-                    It is NOT positioned at the end of
-                    another body after the wrist.
-
-                    The wrist is the pivot for the pan.
-                -->
-
+                <!-- PAN -->
                 <body
                     name="pan"
                     pos="0.40 0 0">
-
-
-                    <!-- Cooking surface -->
 
                     <geom
                         name="pan_bottom"
                         type="cylinder"
                         size="0.14 0.015"
-                        pos="0 0 0"
                         mass="0.15"
-                        material="pan_mat"
-                        friction="1.2 0.1 0.02"/>
-
-
-                    <!-- Pan walls -->
+                        material="pan_mat"/>
 
                     <geom
                         name="pan_front"
@@ -193,29 +150,13 @@
         </body>
 
 
-        <!-- ========================= -->
-        <!-- PANCAKE -->
-        <!-- ========================= -->
-
-        <!--
-            Independent body.
-
-            It is NOT attached to the pan.
-
-            This allows:
-
-            pan acceleration
-                 ↓
-            pancake launches
-                 ↓
-            pancake rotates
-                 ↓
-            pancake lands
-        -->
+        <!-- ================================= -->
+        <!-- PANCAKE                           -->
+        <!-- ================================= -->
 
         <body
             name="pancake"
-            pos="0.85 0 0.29">
+            pos="0.80 0 0.35">
 
             <freejoint
                 name="pancake_free"/>
@@ -233,21 +174,21 @@
     </worldbody>
 
 
-    <!-- ========================= -->
-    <!-- MOTORS -->
-    <!-- ========================= -->
+    <!-- ================================= -->
+    <!-- MOTORS                            -->
+    <!-- ================================= -->
 
     <actuator>
 
         <motor
             name="elbow_motor"
             joint="elbow"
-            gear="1"/>
+            gear="8"/>
 
         <motor
             name="wrist_motor"
             joint="wrist"
-            gear="1"/>
+            gear="8"/>
 
     </actuator>
 

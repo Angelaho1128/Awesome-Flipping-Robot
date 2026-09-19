@@ -40,7 +40,7 @@ wrist_qvel = model.jnt_dofadr[wrist_id]
 # Initial robot configuration
 # --------------------------------------------------
 
-data.qpos[elbow_qpos] = np.deg2rad(45)
+data.qpos[elbow_qpos] = np.deg2rad(35)
 data.qpos[wrist_qpos] = np.deg2rad(-65)
 
 mujoco.mj_forward(model, data)
@@ -61,65 +61,96 @@ pancake_body = mujoco.mj_name2id(
 
 def flip_controller(t):
 
-    # ----------------------------------------------
-    # Phase 1:
-    # Move the arm upward
-    # ----------------------------------------------
+    # ==========================================
+    # STARTING CONFIGURATION
+    # ==========================================
 
-    if t < 0.7:
+    start_elbow = np.deg2rad(35)
+    start_wrist = np.deg2rad(-60)
 
-        progress = t / 0.7
+    # ==========================================
+    # PHASE 1: LOAD
+    # ==========================================
 
-        elbow_target = np.deg2rad(
-            45 + 30 * progress
-        )
+    if t < 0.35:
 
-        wrist_target = np.deg2rad(
-            -65 + 20 * progress
-        )
+        p = t / 0.35
 
-    # ----------------------------------------------
-    # Phase 2:
-    # Rapid wrist acceleration
-    # This launches the pancake
-    # ----------------------------------------------
+        # Move backward/down.
+        elbow = start_elbow + np.deg2rad(20) * p
 
-    elif t < 1.05:
+        # Keep the pan slightly downward.
+        wrist = start_wrist - np.deg2rad(5) * p
 
-        progress = (t - 0.7) / 0.35
 
-        elbow_target = np.deg2rad(
-            75 - 35 * progress
-        )
+    # ==========================================
+    # PHASE 2: LAUNCH
+    # ==========================================
 
-        wrist_target = np.deg2rad(
-            -45 + 150 * progress
-        )
+    elif t < 0.75:
 
-    # ----------------------------------------------
-    # Phase 3:
-    # Follow through
-    # ----------------------------------------------
+        p = (t - 0.35) / 0.40
 
-    elif t < 1.5:
+        # Rapid elbow extension.
+        elbow = np.deg2rad(55) - np.deg2rad(90) * p
 
-        progress = (t - 1.05) / 0.45
+        # Wrist follows but does not snap yet.
+        wrist = np.deg2rad(-65) + np.deg2rad(30) * p
 
-        elbow_target = np.deg2rad(
-            40 + 20 * progress
-        )
 
-        wrist_target = np.deg2rad(
-            105 - 60 * progress
-        )
+    # ==========================================
+    # PHASE 3: WRIST SNAP
+    # ==========================================
+
+    elif t < 0.95:
+
+        p = (t - 0.75) / 0.20
+
+        # Elbow reaches the top of the arc.
+        elbow = np.deg2rad(-35) + np.deg2rad(10) * p
+
+        # Very fast wrist snap.
+        wrist = np.deg2rad(-35) + np.deg2rad(170) * p
+
+
+    # ==========================================
+    # PHASE 4: FOLLOW THROUGH
+    # ==========================================
+
+    elif t < 1.35:
+
+        p = (t - 0.95) / 0.40
+
+        # Bring the arm around the arc.
+        elbow = np.deg2rad(-25) + np.deg2rad(60) * p
+
+        wrist = np.deg2rad(135) - np.deg2rad(195) * p
+
+
+    # ==========================================
+    # PHASE 5: RETURN TO CATCH
+    # ==========================================
+
+    elif t < 1.75:
+
+        p = (t - 1.35) / 0.40
+
+        elbow = np.deg2rad(-25) + (
+            np.deg2rad(35) - np.deg2rad(-25)
+        ) * p
+
+        wrist = np.deg2rad(-60)
+
+    # ==========================================
+    # PHASE 6: CATCH
+    # ==========================================
 
     else:
 
-        elbow_target = np.deg2rad(60)
-        wrist_target = np.deg2rad(45)
+        elbow = start_elbow
+        wrist = start_wrist
 
-    return elbow_target, wrist_target
-
+    return elbow, wrist
 
 # --------------------------------------------------
 # PD controller
@@ -127,11 +158,12 @@ def flip_controller(t):
 
 def pd_control(target, position, velocity):
 
-    kp = 80
+    kp = 100
     kd = 8
 
-    return kp * (target - position) - kd * velocity
+    torque = kp * (target - position) - kd * velocity
 
+    return np.clip(torque, -30, 30)
 
 # --------------------------------------------------
 # Viewer
