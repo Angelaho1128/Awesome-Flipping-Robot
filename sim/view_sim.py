@@ -152,16 +152,27 @@ def flip_controller(t):
     start_wrist = np.deg2rad(-65)
 
     # ==========================================
+    # CATCH CONFIGURATION
+    # ==========================================
+    #
+    # The elbow controls where the pan is.
+    # The wrist counter-rotates to keep ONLY
+    # the pan horizontal.
+    #
+    # 40° + (-40°) = 0°
+    #
+    CATCH_ELBOW = np.deg2rad(40)
+    CATCH_WRIST = -CATCH_ELBOW
+
+
+    # ==========================================
     # PHASE 1: LOAD
     # ==========================================
     if t < 0.30:
 
         p = t / 0.30
 
-        # Elbow moves forward/up slightly.
         elbow = np.deg2rad(35) + np.deg2rad(20) * p
-
-        # Keep pan facing generally forward.
         wrist = np.deg2rad(-65)
 
 
@@ -172,68 +183,77 @@ def flip_controller(t):
 
         p = (t - 0.30) / 0.35
 
-        # Elbow sweeps through the launch.
-        #
         # 55° -> 0°
-        #
-        # This creates the large arm movement.
         elbow = np.deg2rad(55) - np.deg2rad(55) * p
 
-        # Wrist stays mostly controlled during
-        # the initial arc.
+        # -65° -> -50°
         wrist = np.deg2rad(-65) + np.deg2rad(15) * p
 
 
     # ==========================================
-    # PHASE 3: WRIST SNAP AT TOP OF ARC
+    # PHASE 3: WRIST SNAP
     # ==========================================
     elif t < 0.83:
 
         p = (t - 0.65) / 0.18
 
-        # Elbow continues slightly through the arc.
-        elbow = np.deg2rad(0) + np.deg2rad(-10) * p
+        # Elbow continues slightly
+        elbow = np.deg2rad(0) - np.deg2rad(10) * p
 
-        # Now rotate the pan/pancake.
+        # Flip the pan
         wrist = np.deg2rad(-50) + np.deg2rad(180) * p
 
 
     # ==========================================
-    # PHASE 4: FOLLOW THROUGH / CATCH
+    # PHASE 4: FOLLOW THROUGH
     # ==========================================
-    elif t < 1.20:
+    elif t < 1.05:
 
-        p = (t - 0.83) / 0.37
+        p = (t - 0.83) / 0.22
 
-        # Bring elbow underneath the pancake.
-        elbow = np.deg2rad(-10) + np.deg2rad(45) * p
+        # Move the arm underneath the pancake
+        elbow = np.deg2rad(-10) + np.deg2rad(10) * p
 
-        # Bring wrist back underneath the pancake.
-        wrist = np.deg2rad(130) - np.deg2rad(195) * p
-
-
-    # ==========================================
-    # PHASE 5: RETURN TO START
-    # ==========================================
-    elif t < 1.55:
-
-        p = (t - 1.15) / 0.40
-
-        # Lower the pan slightly for the catch
-        elbow = np.deg2rad(35 - 65 * (1 - p))
-        wrist = np.deg2rad(-60)
+        # Bring wrist toward catch orientation
+        wrist = np.deg2rad(130) - np.deg2rad(170) * p
 
 
     # ==========================================
-    # CATCH
+    # PHASE 5: MOVE TO CATCH
+    # ==========================================
+    elif t < 1.30:
+
+        p = (t - 1.05) / 0.25
+
+        # Move elbow toward the lower catch
+        # position.
+        elbow = (
+            np.deg2rad(-10)
+            + (CATCH_ELBOW - np.deg2rad(-10)) * p
+        )
+
+        # Counter-rotate wrist so the PAN,
+        # not the whole arm, becomes horizontal.
+        wrist = -elbow
+
+
+    # ==========================================
+    # PHASE 6: HOLD CATCH
     # ==========================================
     else:
 
-        elbow = start_elbow
-        wrist = start_wrist
+        # Keep the pan underneath the pancake.
+        #
+        # Elbow = +40°
+        # Wrist = -40°
+        # Pan   = 0°
+        #
+        # The arm remains bent.
+        elbow = CATCH_ELBOW
+        wrist = CATCH_WRIST
+
 
     return elbow, wrist
-
 
 # --------------------------------------------------
 # PD controller
