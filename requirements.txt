@@ -1,4 +1,4 @@
-mujoco
 numpy
-pandas
 opencv-python
+depthai==3.10.0
+mujoco

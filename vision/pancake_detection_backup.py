@@ -62,7 +62,6 @@ from datetime import datetime
 
 import cv2
 import numpy as np
-import depthai as dai
 
 WINDOW_MAIN = "Pancake Tracker"
 WINDOW_CTRL = "HSV Controls"
@@ -175,36 +174,6 @@ def print_camera_help():
     )
 
 
-class OakCamera:
-    """Luxonis OAK-1 camera using DepthAI 3.x."""
-
-    def __init__(self):
-        self.pipeline = dai.Pipeline()
-        self.camera = self.pipeline.create(dai.node.Camera).build()
-        self.output = self.camera.requestOutput(
-            (1280, 720),
-            dai.ImgFrame.Type.BGR888p,
-            dai.ImgResizeMode.CROP,
-            30,
-        )
-        self.queue = self.output.createOutputQueue()
-        self.pipeline.start()
-
-    def read(self):
-        try:
-            frame = self.queue.get()
-            return True, frame.getCvFrame()
-        except Exception as exc:
-            print(f"OAK-1 frame error: {exc}")
-            return False, None
-
-    def release(self):
-        try:
-            self.pipeline.stop()
-        except Exception:
-            pass
-
-
 def open_source(source):
     """
     Returns (cap, is_camera, description), or (None, None, None) on failure.
@@ -212,14 +181,6 @@ def open_source(source):
       source is a number -> use that camera index
       anything else      -> treat it as a video file path
     """
-    if source.lower() == "oak":
-        try:
-            oak = OakCamera()
-            return oak, True, "OAK-1 via DepthAI"
-        except Exception as exc:
-            print(f"Could not open OAK-1: {exc}")
-            return None, None, None
-
     if source == "auto":
         for index in range(MAX_CAMERA_INDEX + 1):
             cap, backend_name = try_open_camera(index)
