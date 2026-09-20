@@ -1,0 +1,99 @@
+{
+  "source": "oak",
+  "a_units_per_degree": 0.049984558,
+  "limits": {
+    "angle_min_deg": -90,
+    "angle_max_deg": 45,
+    "acceleration_deg_s2": 1000,
+    "speed_deg_s": 3000.0
+  },
+  "slide": {
+    "angle_deg": -75,
+    "move_s": 3.0,
+    "min_hold_s": 0.18,
+    "timeout_s": 2.0,
+    "stable_s": 0.12,
+    "wiggle_deg": 0,
+    "wiggle_cycles": 0,
+    "wiggle_move_s": 0.08
+  },
+  "launch": {
+    "angle_deg": 45,
+    "move_s": 0.001
+  },
+  "catch": {
+    "fallback_angle_deg": 0,
+    "fallback_move_s": 0.25,
+    "settle_s": 0.3,
+    "angle_min_deg": 20,
+    "angle_max_deg": 35,
+    "angle_step_deg": 0.5,
+    "max_pan_tilt_deg": 35,
+    "horizon_s": 0.65,
+    "min_lead_s": 0.08,
+    "command_margin_s": 0.06,
+    "edge_margin_m": 0.01,
+    "min_descent_m_s": 0.08,
+    "observe_timeout_s": 0.12
+  },
+  "return": {
+    "angle_deg": 0,
+    "move_s": 0.5
+  },
+  "tracking": {
+    "max_age_s": 0.12,
+    "min_samples": 4,
+    "max_samples": 10,
+    "min_span_s": 0.06,
+    "max_residual_m": 0.012,
+    "max_speed_m_s": 4,
+    "airborne_height_m": 0.025,
+    "max_marker_reprojection_px": 1.5,
+    "max_rigid_translation_error_m": 0.02,
+    "webcam_latency_s": null
+  },
+  "geometry": {
+    "joint_world_m": null,
+    "pan_center_from_joint_m": null,
+    "pan_inner_radius_m": null,
+    "pancake_radius_m": 0.05,
+    "pancake_half_thickness_m": 0.003,
+    "pan_outer_radius_m": 0.1524,
+    "camera_to_pan_center_m": 0.3556
+  },
+  "marker": {
+    "dictionary": "DICT_4X4_50",
+    "id": 0,
+    "side_m": 0.08
+  },
+  "calibration": {
+    "intrinsics_file": "intrinsics.json",
+    "mount_file": "mount.json",
+    "verified": false
+  },
+  "vision": {
+    "edge_target_px": null,
+    "edge_radius_px": 18,
+    "pan_center_px": null,
+    "ready_radius_px": 25,
+    "min_score": 0.7,
+    "hsv": {
+      "H low": 8,
+      "H high": 25,
+      "S low": 51,
+      "S high": 255,
+      "V low": 0,
+      "V high": 255,
+      "Min area": 500,
+      "Cleanup px": 3,
+      "Min shape %": 60
+    }
+  },
+  "tempo": 10.0,
+  "queued_launch_catch": true,
+  "three_part": true,
+  "start_angle_deg": 0,
+  "four_part": true,
+  "six_part": false,
+  "zero_nudge_deg": 1
+}

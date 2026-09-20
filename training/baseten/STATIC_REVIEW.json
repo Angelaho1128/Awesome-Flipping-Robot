@@ -1,0 +1,26 @@
+{
+  "checked_at_utc": "2026-09-20T04:49:08.803637+00:00",
+  "change": "Bounded GPU launch search and full-training gate",
+  "static_checks": [
+    "Python source syntax",
+    "unchanged motor/physics/randomization settings",
+    "Baseten probe configuration SDK loading"
+  ],
+  "local_simulation": "NOT RUN",
+  "local_training": "NOT RUN",
+  "runtime_tests": "Pending cloud probe job",
+  "cloud_submission": "NOT SUBMITTED",
+  "sha256_changed": {
+    "settings.yaml": "8d450f960f9b133f14c5d76e6fdad4e3e767f5f5fa152845fe77cac9f1d82037",
+    "ROOT_README.md": "29be7ec611e41730f796194c859fd4941aaa4db0a5a902354f3bd49a7fa4c630",
+    "cloud.py": "b8e1fab1ef69f92d5c931ee745a5441490374357e3ca9aa628544a8d8412b60d",
+    "LAUNCH_SEARCH.md": "10c89929aacc96d0eff7479aab82f6b6d55745dfa0b0a852c8dcb341216ad45a",
+    "view_sim.py": "659818841dc3fd0f10959f9c6511bcf7512ddd63c0c97e83f8e1ee61d771eb4b",
+    "train.py": "fde2360d5eeaae6fab37ec2fca1e7320d471f0b05f375448c750b34d4d039cb6",
+    "config_probe.py": "0e6170aa03664f87b27943d89479ad19ef32cd738bbf0e8d7e24bb92e8fcc1be",
+    "toss/environment.py": "c2c8f19173eac6f6e753a72e34944e484d64d6ff02d7caf2e06de8742822a9fc",
+    "toss/launch_probe.py": "40bc945762b3dc14ecf21de409d180a61d4d9b6526c0a548925f51903a40a5e0",
+    "toss/training.py": "083a30c90d9273cd77dccd710905d72073e0f6fe130e54d9352bc1e38efe74b6",
+    "tests/test_launch_probe.py": "58337446ad1078ba09cece2224dd35586c3c2667002d3e2b360d771ad1d56174"
+  }
+}

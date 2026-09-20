@@ -1,4 +1,8 @@
-numpy
+# Viewer/camera only. Cloud dependencies are pinned in training/baseten/requirements.txt.
+numpy==2.2.6
+PyYAML==6.0.2
 opencv-python
 depthai==3.10.0
-mujoco
+mujoco==3.13.0
+gymnasium==1.2.0
+stable-baselines3==2.7.0

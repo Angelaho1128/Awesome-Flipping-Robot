@@ -1,0 +1,148 @@
+# Single source of physical parameters for viewer and cloud training.
+# Only pancake diameter and initial XY vary. SI conversions occur in toss/model.py.
+schema_version: 1
+physics_revision: 4
+status: measured_geometry_uncalibrated_dynamics
+seed: 17
+domain:
+  pancake_mass_g:
+  - 25.0
+  - 25.0
+  pancake_diameter_mm:
+  - 95.0
+  - 105.0
+  elbow_wrist_mm:
+  - 240.0
+  - 240.0
+  wrist_pan_center_mm:
+  - 100.0
+  - 100.0
+  pan_mass_kg:
+  - 0.315
+  - 0.315
+  mount_mass_kg:
+  - 0.11
+  - 0.11
+  friction:
+  - 0.45
+  - 0.45
+  actuator_delay_s:
+  - 0.0175
+  - 0.0175
+  torque_multiplier:
+  - 1.0
+  - 1.0
+  inertia_multiplier:
+  - 1.0
+  - 1.0
+  pancake_thickness_mm:
+  - 2.5
+  - 2.5
+  initial_offset_mm: 10.0
+  vision_noise_mm: 0.0
+  maximum_sampling_attempts: 256
+  condition_motor_sampling_on_load: false
+physics:
+  timestep_s: 0.002
+  pan_diameter_mm: 160.0
+  pan_bottom_diameter_mm: 150.0
+  pan_depth_mm: 20.0
+  pan_floor_mm: 3.0
+  pan_wall_mm: 3.0
+  rim_segments: 32
+  shoulder_height_mm: 450.0
+  wrist_motor_mass_kg: 0.7
+  link_fixed_mass_kg: 0.06
+  link_linear_density_kg_m: 0.5
+  settle_before_s: 0.3
+  settle_after_s: 0.7
+  success_settling_s: 0.25
+  min_airtime_s: 0.02
+  edge_margin_mm: 5.0
+  tracking_fault_deg: 25.0
+  max_episode_s: 12.0
+  initial_holding_torque_fraction: 0.85
+motor_profiles:
+  hardware:
+    shoulder_torque_nm:
+    - 3.0
+    - 3.0
+    wrist_torque_nm:
+    - 1.2356379
+    - 1.2356379
+    shoulder_speed_deg_s:
+    - 180.0
+    - 180.0
+    shoulder_accel_deg_s2:
+    - 360.0
+    - 360.0
+    shoulder_zero_torque_speed_deg_s:
+    - 450.0
+    - 450.0
+    wrist_speed_deg_s:
+    - 30.0
+    - 30.0
+    wrist_accel_deg_s2:
+    - 360.0
+    - 360.0
+    wrist_zero_torque_speed_deg_s:
+    - 450.0
+    - 450.0
+control:
+  kp_nm_rad:
+  - 120.0
+  - 60.0
+  kd_nm_s_rad:
+  - 2.0
+  - 0.6
+  home_deg:
+  - 45.0
+  - -45.0
+  shoulder_limits_deg:
+  - -15.0
+  - 100.0
+  wrist_limits_deg:
+  - -150.0
+  - 100.0
+  pan_pitch_limits_deg:
+  - -45.0
+  - 75.0
+training:
+  profile: hardware
+  indefinite: true
+  episodes: 20000
+  backend: warp
+  feasibility_candidate_budget: 2000000
+  initial_state_attempts: 32
+  workers: 128
+  n_steps: 8
+  batch_size: 512
+  policy_hidden_sizes:
+  - 512
+  - 512
+  n_epochs: 5
+  learning_rate: 0.0003
+  ent_coef: 0.01
+  max_training_seconds: null
+  checkpoint_every_episodes: 1536
+  checkpoint_every_seconds: 300
+  stop_if_no_airborne_after: null
+  validation_every_episodes: 9216
+  validation_cases: 32
+  validation_seed: 2000000
+  evaluation_cases: 64
+sources:
+  shoulder_rating: https://sienci.com/product/nema-23-closed-loop-stepper-motor-3nm/
+  wrist_rating: https://ldomotion.com/products/ldo57sth562804ac
+  wrist_conversion: 12.6 kgf cm * 0.0980665 = 1.2356379 Nm
+  qualification: Shoulder rating assumes the identified Sienci 3 Nm variant; speed,
+    acceleration, torque-speed rolloff, friction, delay and unweighed masses are fixed
+    assumptions, not measured motor curves.
+launch_probe:
+  candidates: 512
+  worlds: 128
+  seed: 4100000
+  confirm_candidates: 8
+  validation_cases: 16
+  validation_seed: 4200000
+  minimum_valid_launches: 8

@@ -619,24 +619,6 @@ def resize_for_display(frame):
 # --------------------------------------------------------------------------
 
 def switch_camera(current_source):
-    """Toggle between the Mac/OpenCV camera and the OAK-1."""
-    if current_source == "oak":
-        next_source = "0"
-    else:
-        next_source = "oak"
-
-    print(f"\\nSwitching camera: {current_source} -> {next_source}")
-
-    new_cap, new_is_camera, new_description = open_source(next_source)
-
-    if new_cap is None:
-        print(f"Could not switch to {next_source}. Keeping current camera.")
-        return None, None, None, current_source
-
-    print(f"Using {new_description}")
-    return new_cap, new_is_camera, new_description, next_source
-
-def switch_camera(current_source):
     """
     Toggle between the normal OpenCV camera and the OAK-1.
     Returns:
@@ -799,29 +781,6 @@ def main():
                 frame, mask, detection, candidates, fps, paused,
                 show_mask, show_candidates))
             print(f"Saved screenshot: {path}")
-        elif key == ord("p"):
-            if detection:
-                print({k: (round(v, 3) if isinstance(v, float) else v)
-                    for k, v in detection.items()
-                    if k not in ("box", "contour", "chosen", "rank")})
-            else:
-                print("No pancake detected")
-            print(json.dumps(settings))
-
-            if new_cap is not None:
-                cap.release()
-
-            cap = new_cap
-            is_camera = new_is_camera
-            description = new_description
-            current_source = new_source
-
-            detector.reset()
-
-            detection = None
-            candidates = []
-            failed_reads = 0
-
         elif key == ord("p"):
             if detection:
                 print({k: (round(v, 3) if isinstance(v, float) else v)

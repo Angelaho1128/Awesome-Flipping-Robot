@@ -1,460 +1,111 @@
-# Awesome Flipping Robot 🥞🤖
+# Awesome Flipping Robot
 
-An interactive pancake-flipping robot project combining **computer vision, robotics simulation, and real-world camera input**.
+> Before long training, run the new [bounded launch search](training/baseten/LAUNCH_SEARCH.md). Full training now requires a CPU-confirmed, fault-free simulated launch baseline.
 
-The project uses a **Luxonis OAK-1** camera to detect pancakes from a top-down view and **MuJoCo** to simulate the robot's flipping environment.
+Top-down pancake detection and a shared two-joint simulation/training model. The viewer and Baseten PPO trainer now use the same XML generator, torque limits, reward and observation contract. The camera is not yet calibrated or connected to automatic motor execution.
 
-## ✨ Features
+## Fixed measured configuration
 
-* 🥞 Real-time pancake detection using OpenCV
-* 📷 Support for:
+The single source is **training/baseten/settings.yaml**. `common/config.py` reads it; runtime simulation generates XML from it. `sim/assets/arm.xml` is a generated nominal snapshot for inspection, not a second runtime configuration.
 
-  * Built-in laptop webcams
-  * External USB webcams
-  * **Luxonis OAK-1**
-* 🎨 Interactive HSV colour calibration
-* 🔎 Pancake detection using:
+| Parameter | Value |
+|---|---:|
+| Elbow/shoulder axis → wrist axis | 240 mm |
+| Wrist axis → pan bowl centre | 100 mm |
+| Pan mass | 315 g |
+| Pancake mass | 25 g |
+| Pancake diameter, randomized | 95–105 mm |
+| Pancake centre, randomized | X and Y each ±10 mm from pan centre |
+| Nominal pan rim / flat cooking diameter | 160 / 150 mm |
+| Pancake full thickness, assumed fixed | 2.5 mm |
+| Wrist motor mass | 700 g |
+| Attachment mass, assumed fixed | 110 g |
+| Link mass, assumed fixed | 180 g |
+| Shoulder holding-torque reference | 3.0 N·m |
+| Wrist holding-torque reference | 1.2356379 N·m |
 
-  * HSV colour segmentation
-  * Contour analysis
-  * Circularity
-  * Solidity
-  * Aspect ratio
-  * Shape scoring
-* 🧹 Morphological image processing to clean the detection mask
-* 📊 Real-time detection information and FPS
-* ⏯️ Pause and resume detection
-* 💾 Screenshot capture
-* 🤖 MuJoCo robot simulation
-* 🔌 Separate vision and simulation processes
+Only pancake diameter and initial location vary across physical training cases. Mass, friction (0.45), delay (17.5 ms), inertia multiplier (1), motor limits, thickness and geometry remain fixed. Camera observation noise is disabled. PPO still explores different actions; those are choices, not randomized physical parameters.
 
----
+The 3 N·m reference is the [Sienci closed-loop motor rating](https://sienci.com/product/nema-23-closed-loop-stepper-motor-3nm/), assuming your 57HYB112 is that identified Sienci variant. The [LDO-57STH56-2804AC specification](https://ldomotion.com/products/ldo57sth562804ac) gives 12.6 kgf·cm = 1.2356379 N·m and a 0.7 kg mass. Neither source establishes the actual torque-speed curve on your driver at 24 V.
 
-## 🏗️ Project Structure
+Both joints currently use fixed 90°/s speed limits and 180°/s² acceleration limits. The shoulder's previously reported four-second revolution motivates 90°/s; wrist speed and acceleration are provisional. Torque decreases linearly toward zero at an assumed 450°/s cutoff. These dynamic assumptions need measurement before interpreting simulated success as reproducible hardware behavior. An H100 does not change physical speed limits.
 
-```text
-Awesome-Flipping-Robot/
-│
-├── demo.py
-├── oak_test.py
-├── requirements.txt
-├── README.md
-│
-├── vision/
-│   └── pancake_detection.py
-│
-└── sim/
-    └── view_sim.py
+Analytical load at the 45°/-45° home pose is approximately **2.398 N·m shoulder / 0.334 N·m wrist**. The shoulder's permitted initial load is 2.55 N·m, so this pose passes narrowly. Horizontally extending the same load would require roughly 3.253 N·m at the shoulder. Static support does not guarantee enough acceleration for a flip.
+
+## What changed
+
+- Replaced the viewer's separate 40 cm + 40 cm model and amplified actuators with the canonical 24 cm + 10 cm model. Actuator gear is 1, with explicit 3.0 / 1.2356379 N·m zero-speed caps.
+- Replaced the 28 cm pan and 19 cm × 24 mm pancake with the dimensions above. Pan mass is explicitly assigned; rim geometry cannot silently add extra mass.
+- Replaced the direct two-torque environment with Gymnasium-compatible **one-observation, one-complete-toss** action selection: 23 observation values and seven trajectory parameters.
+- The viewer now replays a canonical baseline or a saved policy using recorded simulation timestamps. Wall-clock rendering speed does not change the physics. Old discontinuous wrist snaps were removed.
+- Preparation now raises the shoulder from 45° toward 45–60°, instead of lowering it into higher gravity load. Launch excursion spans 10–40°; all trajectories are checked against joint, pitch, speed and acceleration limits.
+- Added self-contained Baseten/MuJoCo Warp training under `training/baseten/`: 128 CUDA physics worlds, PPO on CUDA, periodic checkpoints, refreshed case banks and CPU/GPU parity gates.
+- Batching preserves per-world compiled parameters and retains the audited `dof_length` fix with simulator sleeping explicitly disabled.
+- Added `common.observation.from_measurements(diameter_mm, x_mm, y_mm)` for calibrated measurements; it does not convert pixels automatically.
+- Fixed the detector's duplicate camera-switch function and broken P-key handler. Colour segmentation and shape detection are otherwise unchanged.
+
+Reward still distinguishes launch, rotation and settled opposite-side landing. A true success requires airborne motion, approximately a half-turn, containment and settling. It does not use the old negative distance-to-world-origin reward. Failure to establish a valid starting state does not enter PPO as a training transition.
+
+## Baseten launch: commands on your laptop
+
+These commands upload source and start execution remotely. Do not run `run.sh` locally.
+
+```sh
+cd /Users/andrewdai/Programming/Awesome-Flipping-Robot/training/baseten
+baseten train push --config config_smoke.py
+baseten train job logs --job-id SMOKE_JOB_ID --tail
 ```
 
-### Main Files
+Replace `SMOKE_JOB_ID` with the returned ID. Smoke runs cloud regression tests, CPU/GPU comparison, and 16 one-toss attempts on four GPU worlds. Require completed smoke, `gpu_parity.json` with `passed: true`, and `COMPLETE.json`. A few failed flips do not imply installation failure; failed parity or initial-state setup must be resolved.
 
-| File                          | Purpose                                          |
-| ----------------------------- | ------------------------------------------------ |
-| `demo.py`                     | Launches the vision system and MuJoCo simulation |
-| `oak_test.py`                 | Standalone OAK-1 camera test                     |
-| `vision/pancake_detection.py` | Pancake detection and computer vision pipeline   |
-| `sim/view_sim.py`             | MuJoCo simulation                                |
-| `requirements.txt`            | Python dependencies                              |
+Then start a **new policy**:
 
----
-
-# 🚀 Getting Started
-
-## 1. Clone the Repository
-
-```bash
-git clone <YOUR_REPOSITORY_URL>
-cd Awesome-Flipping-Robot
+```sh
+baseten train push --config config.py
+baseten train job logs --job-id TRAIN_JOB_ID --tail
 ```
 
-## 2. Create a Virtual Environment
+Leave both resume fields as `None`. Previous policies have incompatible geometry/action contracts. Training runs indefinitely on one H100 with 128 worlds × 8 steps = 1,024 samples per rollout, minibatches of 512 and five PPO epochs. Validation occurs every 9,216 attempts on separate seeded size/location cases. The best mean-reward checkpoint and its success count are saved. First-time kernel compilation adds startup time; no throughput promise is made.
 
-### macOS / Linux
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+```sh
+baseten train job stop --job-id TRAIN_JOB_ID
+baseten train checkpoint list --job-id TRAIN_JOB_ID
+baseten train checkpoint files --job-id TRAIN_JOB_ID --output jsonl > checkpoint-urls.jsonl
+python3 download_artifacts.py checkpoint-urls.jsonl --output downloaded
 ```
 
-### Windows
+`push` submits AND starts the job. Nothing was submitted automatically by this repository update. Expiring checkpoint URL files, secrets and downloaded models are excluded from source uploads.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-```
+## Camera and viewer
 
-## 3. Install Dependencies
+Install root `requirements.txt` only if you intend to run the camera/viewer yourself. Cloud installs its separate pinned requirements through `run.sh`.
 
-```bash
-pip install -r requirements.txt
-```
-
-The project uses:
-
-* Python
-* NumPy
-* OpenCV
-* DepthAI
-* MuJoCo
-
-The `depthai` package is required when using a **Luxonis OAK-1**.
-
----
-
-# 📷 Camera Setup
-
-The pancake detector supports both standard OpenCV cameras and the OAK-1.
-
-## Standard Webcam
-
-A built-in laptop camera or normal USB webcam can be accessed through an OpenCV camera index.
-
-For example:
-
-```bash
-python3 vision/pancake_detection.py --source 0
-```
-
-If you have multiple cameras, try:
-
-```bash
-python3 vision/pancake_detection.py --source 1
-```
-
-You can also let the program automatically find the first available camera:
-
-```bash
-python3 vision/pancake_detection.py --source auto
-```
-
-### List Available OpenCV Cameras
-
-```bash
-python3 vision/pancake_detection.py --list-cameras
-```
-
----
-
-# 🟢 Luxonis OAK-1
-
-The OAK-1 uses **DepthAI** rather than OpenCV's normal camera-index system.
-
-Therefore, you should **not** expect the OAK-1 to appear as camera `1` or `2`.
-
-Connect the OAK-1 through USB and run:
-
-```bash
+```sh
 python3 vision/pancake_detection.py --source oak
-```
-
-The program should display:
-
-```text
-Using OAK-1 via DepthAI
-```
-
-The camera provides a BGR image to the existing OpenCV pancake detection pipeline.
-
-## Test the OAK-1 Independently
-
-Before troubleshooting the pancake detector, you can test the camera itself:
-
-```bash
 python3 oak_test.py
-```
-
-If the OAK-1 feed appears, the camera and DepthAI installation are working.
-
----
-
-# 🥞 Pancake Detection
-
-The main computer vision pipeline is located at:
-
-```text
-vision/pancake_detection.py
-```
-
-The detector processes each frame through several stages:
-
-```text
-Camera
-   ↓
-BGR Frame
-   ↓
-Resize
-   ↓
-HSV Conversion
-   ↓
-Colour Thresholding
-   ↓
-Morphological Cleanup
-   ↓
-Contour Detection
-   ↓
-Shape Analysis
-   ↓
-Pancake Candidate Ranking
-   ↓
-Pancake Detection
-```
-
-The detector considers characteristics such as:
-
-* Area
-* Circularity
-* Solidity
-* Aspect ratio
-* Border proximity
-* Shape consistency
-* Detection continuity across frames
-
----
-
-# 🎨 HSV Calibration
-
-When the detector starts, you can calibrate the pancake colour by clicking on the middle of the pancake.
-
-The HSV controls can also be adjusted manually.
-
-The interface includes controls for:
-
-* Hue
-* Saturation
-* Value
-* Minimum contour area
-* Morphological cleanup
-* Minimum shape percentage
-
-This allows the detector to be adapted to different pancakes, lighting conditions, and cooking surfaces.
-
----
-
-# ⌨️ Controls
-
-| Key     | Action                              |
-| ------- | ----------------------------------- |
-| `Q`     | Quit                                |
-| `ESC`   | Quit                                |
-| `Space` | Pause / resume                      |
-| `M`     | Show / hide detection mask          |
-| `C`     | Show / hide candidates              |
-| `S`     | Save screenshot                     |
-| `P`     | Print current detection information |
-
-### Mouse
-
-Click on the **middle of the pancake** to automatically calibrate the HSV colour range.
-
----
-
-# 🤖 Running the Full Demo
-
-The main entry point is:
-
-```bash
-python3 demo.py
-```
-
-By default, the demo launches the available camera and the MuJoCo simulation.
-
-### Use a Specific Webcam
-
-```bash
-python3 demo.py --source 0
-```
-
-### Use the OAK-1
-
-```bash
 python3 demo.py --source oak
 ```
 
-### Run Only the Vision System
+OpenCV cameras use `--source 0`, `1`, or `auto`. Click the pancake to calibrate colour; Space pauses, M toggles the mask, N switches camera, C shows candidates, S saves a screenshot, P prints detection information and Q exits. Measurements are in resized-image pixels and shape scores are not calibrated probabilities.
 
-```bash
-python3 demo.py --no-sim
+On macOS, explicitly view a trained checkpoint with:
+
+```sh
+mjpython sim/view_sim.py --policy /absolute/path/to/policy.zip
 ```
 
-### Run Only the Simulation
+Keep its metadata.json next to policy.zip. Without a policy the viewer displays a midpoint bounded baseline and prints its actual outcome. Neither mode establishes real-world success.
 
-```bash
-python3 demo.py --no-vision
-```
+## Plan after the smoke test
 
----
+1. Inspect baseline replay and motor saturation/faults using this corrected model. A useful physical motion must exist before a long RL run can find it.
+2. Verify actual speed, acceleration, tracking and load response on the robot; replace the fixed provisional limits with measurements. Keep the sourced holding torque separate from moving torque.
+3. Inspect airborne rate, success count and validation trajectories, not just mean reward. If it again settles near zero reward without launching, diagnose the trajectory/mechanical envelope before spending more GPU time.
+4. Calibrate the top-down camera into pan-relative millimetres, then feed diameter/XY through the shared observation adapter. The policy selects a full trajectory; local robot control executes it.
+5. Add synchronized trial video/telemetry and human-verified landing labels before deploying policies to hardware.
 
-# 🧩 System Architecture
+`robot/controller.py`, `robot/gcode.py`, `robot/safety.py`, pan calibration, automatic inference integration and trial recording remain unimplemented. The camera and viewer still run as separate processes. No hot-pan or motor execution is enabled by this update.
 
-The project separates the computer vision system from the robot simulation.
+## Verification
 
-```text
-                    ┌─────────────────────┐
-                    │       Camera        │
-                    │                     │
-                    │  Webcam / OAK-1     │
-                    └──────────┬──────────┘
-                               │
-                               ↓
-                    ┌─────────────────────┐
-                    │  Pancake Detection  │
-                    │                     │
-                    │  OpenCV + DepthAI   │
-                    └──────────┬──────────┘
-                               │
-                               │ Detection
-                               ↓
-                    ┌─────────────────────┐
-                    │     Robot Logic     │
-                    │      / Future       │
-                    │     Integration     │
-                    └──────────┬──────────┘
-                               │
-                               ↓
-                    ┌─────────────────────┐
-                    │       MuJoCo        │
-                    │     Simulation      │
-                    └─────────────────────┘
-```
-
-The vision system and simulation are launched as separate processes so that the camera pipeline and simulation can operate independently.
-
----
-
-# 🛠️ Troubleshooting
-
-## `ModuleNotFoundError: No module named 'depthai'`
-
-Install the project dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Or install DepthAI directly:
-
-```bash
-pip install depthai==3.10.0
-```
-
----
-
-## `Video file not found: oak`
-
-This means the detector is treating `oak` as a video filename.
-
-Make sure you are using the updated version of `pancake_detection.py` with OAK-1 / DepthAI support.
-
-Run:
-
-```bash
-python3 vision/pancake_detection.py --source oak
-```
-
----
-
-## OAK-1 Is Not Detected
-
-Check:
-
-1. The OAK-1 is connected through USB.
-2. Your USB cable supports data transfer.
-3. The virtual environment is activated.
-4. DepthAI is installed.
-5. The standalone OAK-1 test works.
-
-You can check whether DepthAI detects the device with:
-
-```bash
-python3 -c "import depthai as dai; print(dai.Device.getAllAvailableDevices())"
-```
-
-Then test the camera:
-
-```bash
-python3 oak_test.py
-```
-
----
-
-## OpenCV Cannot Find My Webcam
-
-List available OpenCV cameras:
-
-```bash
-python3 vision/pancake_detection.py --list-cameras
-```
-
-You can then try a specific camera:
-
-```bash
-python3 vision/pancake_detection.py --source 0
-```
-
-or:
-
-```bash
-python3 vision/pancake_detection.py --source 1
-```
-
----
-
-# 📦 Dependencies
-
-The main Python dependencies are listed in:
-
-```text
-requirements.txt
-```
-
-Current dependencies:
-
-```text
-numpy
-opencv-python
-depthai==3.10.0
-mujoco
-```
-
----
-
-# 💻 Platform Notes
-
-The project is currently developed and tested on **macOS with Apple Silicon**.
-
-The computer vision pipeline uses OpenCV, while the OAK-1 camera is accessed through DepthAI.
-
-MuJoCo may require platform-specific setup depending on your operating system and Python environment.
-
----
-
-# 🔮 Future Development
-
-* [ ] Connect pancake detection to robot control
-* [ ] Estimate pancake position relative to the robot
-* [ ] Detect pancake flipping events
-* [ ] Control the simulated robot using vision data
-* [ ] Transfer the control system from simulation to hardware
-* [ ] Improve detection under different lighting conditions
-* [ ] Add real-time robot feedback
-* [ ] Support additional OAK camera capabilities
-* [ ] Integrate the complete flipping pipeline
-
----
-
-# 📄 License
-
-Add your project's license here.
-
----
-
-# 🙌 Acknowledgements
-
-Built using:
-
-* [OpenCV](https://opencv.org/)
-* [NumPy](https://numpy.org/)
-* [DepthAI](https://github.com/luxonis/depthai-python)
-* [Luxonis OAK-1](https://www.luxonis.com/)
-* [MuJoCo](https://mujoco.org/)
+Source/config/XML consistency and Baseten SDK configuration loading are checked statically. New cloud regression tests and GPU parity must run on Baseten. No local simulation or training was executed for this update. The simulator is a rigid-pancake research model; it does not simulate sticking, folding, tearing or a measured motor controller.

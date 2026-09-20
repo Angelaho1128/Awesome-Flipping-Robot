@@ -18,3 +18,15 @@ training/checkpoints/
 
 # macOS
 .DS_Store
+
+# Cloud/model artifacts
+training/baseten/checkpoints/
+training/baseten/downloaded/
+training/baseten/.cache/
+**/*_checkpoints.json
+**/checkpoint-urls.*
+*.zip
+
+.venv-demo/
+
+.venv-workshop/

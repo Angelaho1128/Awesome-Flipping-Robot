@@ -1,0 +1,10 @@
+# GPU PyTorch 2.7.0 is supplied by the pinned Baseten container, not reinstalled.
+numpy==2.2.6
+mujoco==3.13.0
+mujoco-warp==3.13.0
+warp-lang==1.15.0
+gymnasium==1.2.0
+stable-baselines3==2.7.0
+PyYAML==6.0.2
+tensorboard==2.19.0
+pytest==8.4.2

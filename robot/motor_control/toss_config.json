@@ -1,0 +1,23 @@
+{
+  "acceleration_deg_s2": 1000,
+  "position": {
+    "angle_deg": -3,
+    "move_s": 0.22,
+    "hold_s": 0.18
+  },
+  "launch": {
+    "angle_deg": 20,
+    "move_s": 0.32,
+    "hold_s": 0
+  },
+  "catch": {
+    "angle_deg": 30,
+    "move_s": 0.22,
+    "hold_s": 0.15
+  },
+  "return": {
+    "angle_deg": 0,
+    "move_s": 0.4,
+    "hold_s": 0
+  }
+}
