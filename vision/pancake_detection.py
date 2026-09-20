@@ -176,18 +176,22 @@ def print_camera_help():
 
 
 class OakCamera:
-    """Luxonis OAK-1 camera using DepthAI 3.x."""
+    """Luxonis OAK-1 camera using the DepthAI 3.x API."""
 
     def __init__(self):
         self.pipeline = dai.Pipeline()
+
         self.camera = self.pipeline.create(dai.node.Camera).build()
+
         self.output = self.camera.requestOutput(
             (1280, 720),
             dai.ImgFrame.Type.BGR888p,
             dai.ImgResizeMode.CROP,
             30,
         )
+
         self.queue = self.output.createOutputQueue()
+
         self.pipeline.start()
 
     def read(self):
@@ -204,14 +208,16 @@ class OakCamera:
         except Exception:
             pass
 
-
 def open_source(source):
     """
     Returns (cap, is_camera, description), or (None, None, None) on failure.
-      source == "auto"   -> use the first camera that works
-      source is a number -> use that camera index
+
+      source == "auto"   -> use the first available OpenCV camera
+      source == "oak"    -> use the Luxonis OAK-1
+      source is a number -> use that OpenCV camera index
       anything else      -> treat it as a video file path
     """
+    
     if source.lower() == "oak":
         try:
             oak = OakCamera()
@@ -579,7 +585,7 @@ def draw_hud(frame, detection, fps, paused):
     (text_w, _), _ = cv2.getTextSize(right_text, FONT, 0.55, 1)
     draw_text(frame, right_text, (width - text_w - 10, 24), 0.55)
 
-    hints = "click: set colour | SPACE pause | M mask | C rejects | S save | Q quit"
+    hints = "click: set colour | SPACE pause | M mask | N switch camera | C rejects | S save | Q quit"
     draw_text(frame, hints, (8, height - 10), 0.42)
 
 
@@ -612,6 +618,56 @@ def resize_for_display(frame):
 # Main loop
 # --------------------------------------------------------------------------
 
+def switch_camera(current_source):
+    """Toggle between the Mac/OpenCV camera and the OAK-1."""
+    if current_source == "oak":
+        next_source = "0"
+    else:
+        next_source = "oak"
+
+    print(f"\\nSwitching camera: {current_source} -> {next_source}")
+
+    new_cap, new_is_camera, new_description = open_source(next_source)
+
+    if new_cap is None:
+        print(f"Could not switch to {next_source}. Keeping current camera.")
+        return None, None, None, current_source
+
+    print(f"Using {new_description}")
+    return new_cap, new_is_camera, new_description, next_source
+
+def switch_camera(current_source):
+    """
+    Toggle between the normal OpenCV camera and the OAK-1.
+    Returns:
+        new_cap,
+        new_is_camera,
+        new_description,
+        new_source
+    """
+
+    if current_source == "oak":
+        next_source = "0"
+    else:
+        next_source = "oak"
+
+    print(f"\nSwitching camera: {current_source} -> {next_source}")
+
+    new_cap, new_is_camera, new_description = open_source(next_source)
+
+    if new_cap is None:
+        print(f"Could not switch to {next_source}.")
+        return None, None, None, current_source
+
+    print(f"Using {new_description}")
+
+    return (
+        new_cap,
+        new_is_camera,
+        new_description,
+        next_source,
+    )
+
 def main():
     parser = argparse.ArgumentParser(description="Live pancake detector")
     parser.add_argument("--source", default="auto",
@@ -634,6 +690,16 @@ def main():
         return
     print(f"Using {description}")
     print("Tip: click on the middle of the pancake to calibrate the colour.")
+    print("Press N to switch between the webcam and OAK-1.")
+
+    current_source = args.source
+
+    if current_source == "auto":
+        current_source = "0"
+
+    # Normalize numeric camera sources so switching works consistently.
+    if current_source.isdigit():
+        current_source = current_source
 
     create_controls()
     cv2.namedWindow(WINDOW_MAIN, cv2.WINDOW_AUTOSIZE)
@@ -707,6 +773,24 @@ def main():
             show_mask = not show_mask
         elif key == ord("c"):
             show_candidates = not show_candidates
+        elif key == ord("n"):
+            (
+                new_cap,
+                new_is_camera,
+                new_description,
+                new_source,
+            ) = switch_camera(current_source)
+
+            if new_cap is not None:
+                cap.release()
+                cap = new_cap
+                is_camera = new_is_camera
+                description = new_description
+                current_source = new_source
+                detector.reset()
+                detection = None
+                candidates = []
+                failed_reads = 0
         elif key == ord("s"):
             os.makedirs("screenshots", exist_ok=True)
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -715,6 +799,29 @@ def main():
                 frame, mask, detection, candidates, fps, paused,
                 show_mask, show_candidates))
             print(f"Saved screenshot: {path}")
+        elif key == ord("p"):
+            if detection:
+                print({k: (round(v, 3) if isinstance(v, float) else v)
+                    for k, v in detection.items()
+                    if k not in ("box", "contour", "chosen", "rank")})
+            else:
+                print("No pancake detected")
+            print(json.dumps(settings))
+
+            if new_cap is not None:
+                cap.release()
+
+            cap = new_cap
+            is_camera = new_is_camera
+            description = new_description
+            current_source = new_source
+
+            detector.reset()
+
+            detection = None
+            candidates = []
+            failed_reads = 0
+
         elif key == ord("p"):
             if detection:
                 print({k: (round(v, 3) if isinstance(v, float) else v)

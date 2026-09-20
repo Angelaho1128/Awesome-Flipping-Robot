@@ -90,9 +90,8 @@ def stop_all(processes):
 
 def main():
     parser = argparse.ArgumentParser(description="Run the vision and simulation windows together")
-    parser.add_argument("--source", default=None,
-                        help="camera for the vision window: a number like 0 or 1, "
-                             "or a video file (default: auto-detect)")
+    parser.add_argument("--source", default="auto",
+                        help="camera source: auto, oak, a camera index, or a video file")
     parser.add_argument("--no-vision", action="store_true", help="don't open the vision window")
     parser.add_argument("--no-sim", action="store_true", help="don't open the simulation window")
     args = parser.parse_args()
